@@ -36,8 +36,10 @@ lines.reduce((folderName, currentLine) => {
 
 }, "")
 
+console.log(filesAndFoldersMap)
+
 // Calculates sum from Folder where only Folders exists
-let folderSum = new Map(Array.from(filesAndFoldersMap.entries()).map((mapEntry) => {
+let folderSum = new Map(Array.from(filesAndFoldersMap.entries()).reverse().map((mapEntry) => {
     const [folder, fileAndFolder] = mapEntry;
 
     let onlyFiles = fileAndFolder.every(entry => !isNaN(entry));
@@ -52,18 +54,28 @@ let folderSum = new Map(Array.from(filesAndFoldersMap.entries()).map((mapEntry) 
 
 }));
 
-function getFolderSizeRec(folderName) {
-    let folderValueOrSize = folderSum.get(folderName);
-    if(!folderValueOrSize) {
-        return parseInt(folderName)
-    }
-    if (isNaN(folderValueOrSize)) {
 
-        return folderValueOrSize.reduce((prev, cur) => prev + isNaN(cur) ? parseInt(getFolderSizeRec(cur)) : parseInt(cur), 0)
-
+const folderSizeCache = new Map()
+function getFolderSize(folderName)  {
+    if(folderSizeCache.has(folderName)) {
+        return folderSizeCache.get(folderName)
     }
-    return parseInt(folderValueOrSize)
+    let size = folderSum.get(folderName);
+    if(isNaN(size)) {
+        let innerFolderSize = size.filter(folders => isNaN(folders)).reduce((prev, cur) => {
+            let folderSize = getFolderSize(cur);
+            folderSizeCache.set(cur, folderSize)
+            return prev + folderSize;
+        },0);
+        const fileSize = size.filter(folders => !isNaN(folders)).reduce((prev, cur) => { return prev + parseInt(cur)},0)
+        let folderSize = innerFolderSize + fileSize;
+        folderSizeCache.set(folderName, folderSize)
+        return folderSize
+    }
+
+    return parseInt(size);
 }
+
 
 
 const totalSum = Array.from(folderSum.entries()).map(mapEntry => {
@@ -72,18 +84,18 @@ const totalSum = Array.from(folderSum.entries()).map(mapEntry => {
         return mapEntry;
     }
 
+
     let fileSum = fileAndFolder.filter(file => !isNaN(file)).reduce((prev, cur) => prev + parseInt(cur), 0);
-    let folders = fileAndFolder.filter(folder => isNaN(folder));
-    return [folder, [fileSum, folders]]
-}).map(mapEntry => {
-    if (!isNaN(mapEntry[1])) {
-        return mapEntry;
-    }
-    const [folder, [fileSize, folders]] = mapEntry;
 
-    const folderSum = folders.reduce((prev, cur) => prev + getFolderSizeRec(cur), 0)
-    return [folder, fileSize + folderSum]
+    let folderSum = fileAndFolder.filter(folder => isNaN(folder)).reduce((prev, cur) => {
 
+        let folderSize = getFolderSize(cur);
+        return prev + folderSize;
+    }, 0);
+
+
+
+    return [folder, fileSum + folderSum]
 })
 console.log(totalSum)
 
